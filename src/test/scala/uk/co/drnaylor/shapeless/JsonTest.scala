@@ -2,7 +2,7 @@ package uk.co.drnaylor.shapeless
 
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
-import play.api.libs.json.Json
+import play.api.libs.json.{JsError, Json}
 
 class JsonTest extends AnyFreeSpec with Matchers {
 
@@ -20,6 +20,18 @@ class JsonTest extends AnyFreeSpec with Matchers {
     "test" in {
       Json.obj("a" -> "a", "b" -> 1, "c" -> Json.obj("d" -> "d", "e" -> 2)) mustBe Json.toJson(
         Parent("a", 1, Child("d", 2))
+      )
+    }
+
+    "test optional" in {
+      Json.obj("a" -> "a", "b" -> 1, "c" -> Json.obj("d" -> "d", "e" -> 2)) mustBe Json.toJson(
+        ParentOpt("a", 1, Some(Child("d", 2)))
+      )
+    }
+
+    "test optional with None" in {
+      Json.obj("a" -> "a", "b" -> 1) mustBe Json.toJson(
+        ParentOpt("a", 1, None)
       )
     }
   }
@@ -41,6 +53,12 @@ class JsonTest extends AnyFreeSpec with Matchers {
       Json
         .obj("a" -> "a", "b" -> 1, "c" -> Json.obj("d" -> "d", "e" -> 2))
         .as[ParentOpt](asReads[ParentOpt]) mustBe ParentOpt("a", 1, Some(Child("d", 2)))
+    }
+
+    "test invalid input should fail" in {
+      Json
+        .obj("a" -> "a", "b" -> 1, "c" -> "nope")
+        .validate[ParentOpt](asReads[ParentOpt]) mustBe a[JsError]
     }
   }
 

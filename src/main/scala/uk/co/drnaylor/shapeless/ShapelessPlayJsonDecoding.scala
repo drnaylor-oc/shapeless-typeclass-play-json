@@ -1,7 +1,7 @@
 package uk.co.drnaylor.shapeless
 
 import play.api.libs.json.JsValue.jsValueToJsLookup
-import play.api.libs.json.{JsObject, JsSuccess, JsUndefined, Reads, __}
+import play.api.libs.json.{JsError, JsObject, JsSuccess, JsUndefined, Reads, __}
 import shapeless._
 import shapeless.labelled.{FieldType, field}
 
@@ -18,6 +18,7 @@ trait ShapelessReads[A] {
 
 trait ShapelessJsonDecoding[P[_]] {
 
+
   implicit lazy val hnilShapelessWrites: ShapelessReads[HNil] = ShapelessReads(
     Reads.pure(HNil)
   )
@@ -29,11 +30,13 @@ trait ShapelessJsonDecoding[P[_]] {
   ): ShapelessReads[FieldType[K, H] :: T] = {
     val fieldName = witness.value.name
     val tReads    = tailReads.value.reads
-    ShapelessReads { case jsObject: JsObject =>
-      for {
-        head <- (jsObject \ fieldName).validate[H].map(field[K].apply)
-        tail <- tReads.reads(jsObject)
-      } yield head :: tail
+    ShapelessReads {
+      case jsObject: JsObject =>
+        for {
+          head <- (jsObject \ fieldName).validate[H].map(field[K].apply)
+          tail <- tReads.reads(jsObject)
+        } yield head :: tail
+      case x => JsError(s"Expecting an object, got $x")
     }
   }
 
@@ -44,12 +47,14 @@ trait ShapelessJsonDecoding[P[_]] {
   ): ShapelessReads[FieldType[K, Option[H]] :: T] = {
     val fieldName = witness.value.name
     val tReads    = tailReads.value.reads
-    ShapelessReads { case jsObject: JsObject =>
-      for {
-        headRead <- (__ \ fieldName).readNullable[H].reads(jsObject)
-        head     <- JsSuccess(field[K].apply(headRead))
-        tail     <- tReads.reads(jsObject)
-      } yield head :: tail
+    ShapelessReads {
+      case jsObject: JsObject =>
+        for {
+          headRead <- (__ \ fieldName).readNullable[H].reads(jsObject)
+          head     <- JsSuccess(field[K].apply(headRead))
+          tail     <- tReads.reads(jsObject)
+        } yield head :: tail
+      case x => JsError(s"Expecting an object, got $x")
     }
   }
 
